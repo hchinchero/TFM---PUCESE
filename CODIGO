@@ -104,5 +104,4 @@ USB.println(F("There has been any error while receiving packet"));
 [/code]
 
 —
-Reply to this email directly, view it on GitHub, or unsubscribe.
-You are receiving this because you are subscribed to this thread.
+
