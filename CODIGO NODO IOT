@@ -1,0 +1,145 @@
+/*
+ *  ------ [SX_02a] - TX LoRa for IoT Node 4ANI-SEM50 -------- 
+ *
+ *  Explanation: This file shows how to configure the IoT Node 
+ *  module in LoRa mode and then send packets with plain-text payloads
+ *
+ *  Copyright (C) 2022 Cintelam Campos Inteligentes de America Cia. Ltda. 
+ *  http://www.cintelam.com
+ *  
+ *  This program is free software: you can redistribute it and/or modify 
+ *  it under the terms of the GNU General Public License as published by 
+ *  the Free Software Foundation, either version 3 of the License, or 
+ *  (at your option) any later version. 
+ *  
+ *  This program is distributed in the hope that it will be useful, 
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of 
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
+ *  GNU General Public License for more details. 
+ *  
+ *  Version:           4.1
+ *  Author 1:          Angel Guevara Chinchero
+ *  Author 2:          Hector Chinchero Villacis
+ *  Author 3:          Alfonso Marchan
+ */
+
+
+// Include this library to transmit with sx1272
+#include <WaspSX1272.h>
+#include <currentLoop.h>
+#include <string.h> 
+#include <stdio.h>
+
+// define the destination address to send packets
+uint8_t rx_address = 1;
+int src=2;
+
+// status variable
+int8_t e;
+
+float valueIrms = 0; 
+float valueVin = 0;
+float valuePot = 0;
+
+void setup()
+{
+  // Init USB port
+  USB.ON();
+  USB.println(F("SX_02a example"));
+  USB.println(F("Semtech SX1272 module TX in LoRa"));
+
+  USB.println(F("----------------------------------------"));
+  USB.println(F("Setting configuration:")); 
+  USB.println(F("----------------------------------------"));
+
+  // Init sx1272 module
+  sx1272.ON();
+
+  // Select frequency channel CH_14_868 antes estuvo CH_10_868
+  e = sx1272.setChannel(CH_14_868);
+  USB.print(F("Setting Channel CH_14_868.\t state ")); 
+  USB.println(e);
+
+  // Select implicit (off) or explicit (on) header mode
+  e = sx1272.setHeaderON();
+  USB.print(F("Setting Header ON.\t\t state "));  
+  USB.println(e); 
+
+  // Select mode: from 1 to 10
+  e = sx1272.setMode(7);  
+  USB.print(F("Setting Mode '1'.\t\t state "));
+  USB.println(e);  
+
+  // Select CRC on or off
+  e = sx1272.setCRC_ON();
+  USB.print(F("Setting CRC ON.\t\t\t state "));
+  USB.println(e);  
+
+  // Select output power (Max, High or Low)
+  e = sx1272.setPower('M');
+  USB.print(F("Setting Power to 'L'.\t\t state "));  
+  USB.println(e); 
+
+  // Select the node address value: from 2 to 255
+  e = sx1272.setNodeAddress(src);
+  USB.print(F("Setting Node Address to '2'.\t state "));
+  USB.println(e);
+  USB.println();
+
+
+  currentLoopBoard.ON(SUPPLY5V);
+  
+  
+  delay(1000);  
+  
+  USB.println(F("----------------------------------------"));
+  USB.println(F("Sending:")); 
+  USB.println(F("----------------------------------------"));
+}
+
+
+void loop()
+{
+  //ejemplo de lectura analogica de sensores con ADC acondicionalo
+  valueIrms = currentLoopBoard.readChannel(CHANNEL1); 
+  //se puede reemplazar por GetCorriente(CHANNEL1);
+  valueVin = 120 V;
+  //se puede reemplazar por SetTension();
+  valuePot = valueVin*valueIrms;
+  //se puede reemplazar por GetPotencia();
+      
+  //variable que almacena todos los valores calculados y envia a la red Lora
+  char mensajeVariables[100];
+  
+  //valores en arreglo de caracteres
+  char charIrms[15];
+  char charVin[15];
+  char charPot[15];
+
+  Utils.float2String (valueIrms, charIrms, 2);
+  Utils.float2String (valueVin, charVin, 2);
+  Utils.float2String (valuePot, charPot, 2);
+
+  //construcción del string de la lectura del sensor y transmisión de datos
+  snprintf(mensajeVariables, sizeof(mensajeVariables), "<src=%d;Irms=%s;Vin=%s;Pot=%s>", src, charIrms, charVin, charPot);
+  //imprime en puerto local los valores para verificar la programación - desarrolladores
+  USB.println(mensajeVariables); 
+
+  //verifica el envio del mensaje a la red LoRa
+  e = sx1272.sendPacketTimeout( rx_address, (char *)mensajeVariables);
+  
+  delay(1000);
+  // Check sending status
+  if( e == 0 ) 
+  {
+    USB.println(F("Packet sent OK"));     
+  }
+  else 
+  {
+    USB.println(F("Error sending the packet"));  
+    USB.print(F("state: "));
+    USB.println(e, DEC);
+  } 
+
+  delay(5000); 
+}
